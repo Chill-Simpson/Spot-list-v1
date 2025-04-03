@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スポットマップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <link rel="stylesheet" href="spot-style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <style>
+        /* --- 基本設定 --- */
+        body {
+            margin: 0; padding: 0; font-family: sans-serif;
+            background-color: #1E2C2A; /* スポット表示順設定と同じ背景 */
+            color: #f0f0f0;
+        }
+        #map { height: 100vh; width: 100%; }
+        #loadingIndicator { 
+            position: absolute;
+            top: 10px; left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            border-radius: 5px;
+            z-index: 1001;
+            font-weight: bold;
+        }
+
+        /* --- ダークテーマの情報表示モーダル --- */
+        .modal-bg { /* IDセレクタ #infoModal でも可 */
+            display: none; /* 初期非表示 */
+            position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            align-items: center; justify-content: center; padding: 20px 0;
+        }
+        .modal-view { /* map-modal-view から変更した場合、クラス名も合わせる */
+            background-color: #2A3A38; /* ★変更: ダーク背景 (sort_spots_style.css のリスト背景参考) */
+            color: #f0f0f0; /* ★変更: 基本文字色を明るく */
+            padding: 25px 30px;
+            border-radius: 15px;
+            width: 90%; max-width: 500px; max-height: 85vh;
+            overflow-y: auto; position: relative;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1); /* 境界線 */
+        }
+        .modal-close-btn { /* クラス名注意 */
+            position: absolute; top: 10px; right: 15px;
+            font-size: 28px; font-weight: bold;
+            color: #aaa; /* ダーク背景に合わせて調整 */
+            background: none; border: none; cursor: pointer; line-height: 1;
+        }
+        .modal-close-btn:hover { color: #fff; } /* ホバー色変更 */
+
+        /* モーダル内の要素 */
+        .modal-view h2 { /* IDセレクタ #modal-name-display でも可 */
+            margin-top: 0; margin-bottom: 15px; /* 下マージン少し調整 */
+            font-size: 1.3em; /* ★変更: 少し小さく (例: 1.6em -> 1.3em) */
+            color: #ffffff; /* ★変更: 見出しを白に */
+            word-break: break-all;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* 下線追加 */
+            padding-bottom: 10px;
+            font-weight: 600; /* 太さは維持 */
+        }
+        
+        /* モーダル詳細部分の <p> タグのスタイル */
+        .modal-details p {
+            margin: 8px 0;        /* 段落間のスペースを少し確保 */
+            line-height: 1.6;     /* 行の高さを読みやすく */
+            color: #f0f0f0;
+            font-size: 16px;      /* ★値部分の基準となるフォントサイズ (調整可) */
+        }
+
+        /* ラベル部分 (<strong>) のスタイル */
+        .modal-details p strong {
+            color: #ffffff;
+            margin-right: 8px;
+            font-weight: 500;     /* ★変更: 太さを少し抑える (600 -> 500) */
+            font-size: 0.9em;     /* ★変更: 値(1em=16px)より少し小さく(14.4px相当) */
+            /* または固定値で指定: font-size: 14px; */
+            display: inline-block; /* 右マージンを確実に効かせるため */
+            width: 120px;         /* ★追加: ラベルの幅を固定して揃える (調整可) */
+            vertical-align: top;  /* 上揃えにする */
+        }
+
+        /* 値部分 (<span>) のスタイル */
+        .modal-details p span {
+            word-break: break-all; /* 長い値は折り返す */
+            /* font-size: 1em; */ /* ← pタグから継承されるので通常は不要 */
+            display: inline-block; /* レイアウト調整用 */
+            vertical-align: top;   /* 上揃えにする */
+        }
+
+        /* 画像表示 */
+        .modal-image { /* IDセレクタ #modal-image でも可 */
+            display: none;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            object-fit: contain;
+            max-height: 40vh;
+            margin: 15px auto 20px;
+            border-radius: 8px;
+            background-color: rgba(0,0,0,0.2); /* 背景色調整 */
+        }
+
+        /* バッジ (ダーク背景用) */
+        .modal-badge { /* ← 新しい共通クラス名 */
+            display: inline-block; padding: 4px 10px; border-radius: 6px;
+            font-size: 0.9em; font-weight: bold; color: white;
+            margin-left: 8px; line-height: 1.3; vertical-align: middle;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* チームバッジ色 */
+        .modal-badge.team-green { background-color: #27ae60; }
+        .modal-badge.team-red { background-color: #c0392b; }
+        .modal-badge.team-gray { background-color: #7f8c8d; }
+        /* 特定状況バッジ色 */
+        .modal-badge.identified-blue { background-color: #2980b9; }
+        .modal-badge.identified-gray { background-color: #7f8c8d; }
+        /* レベルバッジ色 (文字色のみ変更、背景は共通化) */
+        .modal-badge.level-badge { background-color: #34495e; }
+        .modal-badge.level-s { color: #e74c3c; }
+        .modal-badge.level-a { color: #bb86fc; }
+        .modal-badge.level-b { color: #3498db; }
+        .modal-badge.level-c { color: #1abc9c; }
+        .modal-badge.level-d { color: #bdc3c7; }
+
+        /* タブナビゲーション用のスタイル */
+        .bottom-nav {
+            position: fixed; /* 画面下部に固定 */
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px; /* タブの高さを指定 */
+            background-color: #2A3A38; /* 背景色 (他の要素と合わせる) */
+            border-top: 1px solid rgba(255, 255, 255, 0.1); /* 上境界線 */
+            display: flex; /* タブを横並びに */
+            justify-content: space-around; /* タブ間のスペースを均等に */
+            align-items: center; /* 上下中央揃え */
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2); /* 上向きの影 */
+            z-index: 1000; /* 他の要素より手前に */
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column; /* テキスト (やアイコン) を縦に積む場合 */
+            align-items: center; /* 中央揃え */
+            justify-content: center; /* 中央揃え */
+            flex-grow: 1; /* 各タブが均等に幅を取る */
+            height: 100%;
+            color: #aaa; /* 通常時のテキスト色 */
+            text-decoration: none; /* リンクの下線を消す */
+            text-align: center;
+            padding: 4px 0; /* 上下のパディング */
+            transition: color 0.2s; /* 色変化を滑らかに */
+        }
+
+        .nav-item:hover {
+            color: #fff; /* ホバー時の色 */
+        }
+
+        .nav-text {
+            font-size: 12px; /* テキストサイズ */
+            margin-top: 2px; /* アイコンとテキストの間隔 (アイコンがない場合は調整) */
+        }
+
+        /* アクティブなタブのスタイル */
+        .nav-item.active {
+            color: #2ecc71; /* アクティブ時の色 (例: 緑) */
+            font-weight: bold;
+        }
+
+        /* マップがタブに隠れないように調整 */
+        #map { 
+            height: calc(100vh - 50px); /* タブの高さ分を引く */
+            width: 100%; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- タブナビゲーション -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-item" id="nav-list">
+            <span class="nav-text">リスト</span>
+        </a>
+        <a href="map_view.html" class="nav-item active" id="nav-map">
+            <span class="nav-text">マップ</span>
+        </a>
+        <a href="sort_spots.html" class="nav-item" id="nav-sort">
+            <span class="nav-text">並び替え</span>
+        </a>
+    </nav>
+
+    <div id="infoModal" class="modal-bg">
+        <div class="modal-view">
+            <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
+            <h2 id="modal-name-display">(スポット名)</h2>
+            <img id="modal-image" class="modal-image" alt="スポット画像" style="display: none;">
+            <div class="modal-details">
+                <p><strong>ID:</strong> <span id="modal-id-display"></span></p>
+                <p><strong>緯度:</strong> <span id="modal-lat-display"></span></p>
+                <p><strong>経度:</strong> <span id="modal-lng-display"></span></p>
+                <p><strong>住所:</strong> <span id="modal-address-display"></span></p>
+                <p><strong>都道府県:</strong> <span id="modal-prefecture-display"></span></p>
+                <p><strong>チーム:</strong> <span id="modal-team-display"></span></p>
+                <p><strong>敵ギルド名:</strong> <span id="modal-enemyGuildName-display"></span></p>
+                <p><strong>レベル:</strong> <span id="modal-level-display"></span></p>
+                <p><strong>特定状況:</strong> <span id="modal-identified-display"></span></p>
+                <p><strong>登録者:</strong> <span id="modal-owner-display"></span></p>
+                <p><strong>登録/更新日時:</strong> <span id="modal-createdAt-display"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 地図の初期化 ---
+        // ★★★ 初期表示の緯度・経度、ズームレベルを調整してください ★★★
+        const map = L.map('map').setView([35.6812, 139.7671], 5); // 例: 東京駅あたり、ズームレベル5
+
+        // --- 地図タイルの設定 ---
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // --- カスタムアイコンの定義 ---
+        // ★★★ ピン画像のパスを実際のパスに合わせてください ★★★
+        const icons = {
+            'your guild': L.icon({
+                iconUrl: 'images/pin-green.png',   // ★変更★
+                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
+                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
+                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
+             }),
+            'enemy':      L.icon({
+                iconUrl: 'images/pin-red.png',     // ★変更★
+                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
+                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
+                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
+            }),
+            'neutral':    L.icon({
+                iconUrl: 'images/pin-neutral.png', // ★変更★
+                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
+                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
+                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
+            }),
+            // デフォルトアイコン (teamが上記以外の場合や指定がない場合)
+            'default':    L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            })
+        };
+
+        // --- GASからデータを取得してマーカーをプロット ---
+        // ★★★ ご自身の GAS Webアプリ URL に差し替えてください ★★★
+        const gasUrl = 'https://script.google.com/macros/s/AKfycbyZcsBme8_AlILkG-v5lcmJZfwxRsKArmyVFZs8NfiUhCYiAXnkqnn_krVJ5IQe0sFqDg/exec';
+
+        // ローディング表示（任意）
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loadingIndicator'; // ★追加: IDを付与
+        loadingIndicator.innerText = 'スポット情報を読み込み中...';
+        document.body.appendChild(loadingIndicator);
+
+        fetch(gasUrl + '?action=getMapSpots')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                document.getElementById('loadingIndicator')?.remove(); // ★変更: IDで確実に要素を取得して削除
+                if (result.status === 'error') {
+                    throw new Error(`GAS Error: ${result.message}`);
+                }
+
+                const spots = result.data;
+                console.log(`Loaded ${spots.length} spots.`);
+
+                spots.forEach(spot => {
+                    // 緯度経度が有効か再確認 (GAS側でもチェックしているが念のため)
+                    if (typeof spot.lat !== 'number' || typeof spot.lng !== 'number' || isNaN(spot.lat) || isNaN(spot.lng)) {
+                        console.warn('Skipping spot with invalid lat/lng:', spot);
+                        return;
+                    }
+
+                    // team に基づいてアイコンを選択
+                    const teamKey = spot.team || 'neutral'; // team が空なら neutral 扱い
+                    const selectedIcon = icons[teamKey] || icons['default']; // 定義にない team なら default
+
+                    // マーカーを作成
+                    const marker = L.marker([spot.lat, spot.lng], { icon: selectedIcon });
+
+                    // マーカーにスポットデータを保持させる
+                    marker.spotData = spot;
+
+                    // マーカークリック時のイベントリスナーを設定
+                    marker.on('click', function() {
+                        const data = this.spotData; // クリックされたマーカーのデータを取得
+
+                        // 画像 (変更なし)
+                        const imgElement = document.getElementById('modal-image');
+                        if (imgElement) {
+                            if (data.imageBase64 && data.imageBase64.length > 100) {
+                                imgElement.src = `data:image/jpeg;base64,${data.imageBase64}`;
+                                imgElement.style.display = 'block';
+                            } else if (data.imageUrl) {
+                                imgElement.src = data.imageUrl;
+                                imgElement.style.display = 'block';
+                                imgElement.onerror = () => { imgElement.style.display = 'none'; };
+                            } else {
+                                imgElement.src = '';
+                                imgElement.style.display = 'none';
+                            }
+                        }
+
+                        // 各情報を span に設定
+                        document.getElementById('modal-name-display').textContent = data.name || '(名前なし)';
+                        document.getElementById('modal-id-display').textContent = data.id || '';
+                        document.getElementById('modal-lat-display').textContent = data.lat || '';
+                        document.getElementById('modal-lng-display').textContent = data.lng || '';
+                        document.getElementById('modal-address-display').textContent = data.address || '';
+                        document.getElementById('modal-prefecture-display').textContent = data.prefecture || '';
+                        document.getElementById('modal-enemyGuildName-display').textContent = data.enemyGuildName || '';
+                        document.getElementById('modal-owner-display').textContent = data.owner || '';
+                        document.getElementById('modal-createdAt-display').textContent = data.createdAt ? new Date(data.createdAt).toLocaleString('ja-JP') : '';
+
+                        // チーム表示 (バッジ適用) - span とクラス名変更
+                        const teamSpan = document.getElementById('modal-team-display');
+                        teamSpan.textContent = ''; // クリア
+                        const teamBadge = document.createElement('span');
+                        teamBadge.classList.add('modal-badge'); // 新しい共通クラス
+                        let teamText = '不明';
+                        if (data.team === 'your guild') { teamBadge.classList.add('team-green'); teamText = '自軍'; }
+                        else if (data.team === 'enemy') { teamBadge.classList.add('team-red'); teamText = '敵軍'; }
+                        else { teamBadge.classList.add('team-gray'); teamText = '未取得'; }
+                        teamBadge.textContent = teamText;
+                        teamSpan.appendChild(teamBadge);
+
+                        // レベル表示 (バッジ適用) - span とクラス名変更
+                        const levelSpan = document.getElementById('modal-level-display');
+                        levelSpan.textContent = ''; // クリア
+                        if(data.level){
+                            const levelBadge = document.createElement('span');
+                            levelBadge.classList.add('modal-badge', 'level-badge'); // 新しい共通クラス + レベル用
+                            levelBadge.textContent = data.level;
+                            if (data.level === 'S') levelBadge.classList.add('level-s');
+                            else if (data.level === 'A') levelBadge.classList.add('level-a');
+                            else if (data.level === 'B') levelBadge.classList.add('level-b');
+                            else if (data.level === 'C') levelBadge.classList.add('level-c');
+                            else if (data.level === 'D') levelBadge.classList.add('level-d');
+                            levelSpan.appendChild(levelBadge);
+                        } else {
+                            levelSpan.textContent = '-';
+                        }
+
+                        // 特定状況表示 (バッジ適用) - span とクラス名変更
+                        const identifiedSpan = document.getElementById('modal-identified-display');
+                        identifiedSpan.textContent = ''; // クリア
+                        const identifiedBadge = document.createElement('span');
+                        identifiedBadge.classList.add('modal-badge'); // 新しい共通クラス
+                        if (data.identified === '特定済み') {
+                            identifiedBadge.classList.add('identified-blue'); // 特定済み用クラス
+                            identifiedBadge.textContent = '特定済み';
+                        } else {
+                            identifiedBadge.classList.add('identified-gray'); // 未特定用クラス
+                            identifiedBadge.textContent = '未特定';
+                        }
+                        identifiedSpan.appendChild(identifiedBadge);
+
+                        // モーダルを表示 (ID: infoModal)
+                        document.getElementById('infoModal').style.display = 'flex';
+                    });
+
+                    // マーカーを地図に追加
+                    marker.addTo(map);
+                });
+
+                // 必要であれば、全マーカーが表示されるように地図の範囲を調整
+                // const markerBounds = L.featureGroup(markersArray).getBounds();
+                // if (markerBounds.isValid()) { map.fitBounds(markerBounds); }
+
+            })
+            .catch(error => {
+                document.getElementById('loadingIndicator')?.remove(); // ★変更: IDで確実に要素を取得して削除
+                console.error('Error fetching or processing spot data:', error);
+                alert('スポット情報の読み込みに失敗しました。\n' + error.message);
+            });
+
+        // --- モーダルを閉じる処理 ---
+        // モーダルの外側コンテナの ID を 'infoModal' に合わせる
+        const modalBg = document.getElementById('infoModal');
+        // 閉じるボタンのクラス名を CSS に合わせる (例: modal-close-btn)
+        const modalCloseBtn = modalBg?.querySelector('.modal-close-btn');
+
+        if(modalCloseBtn){
+            modalCloseBtn.addEventListener('click', () => {
+                modalBg.style.display = 'none';
+            });
+        }
+
+        // 背景クリック (modalBg の変数は上で定義済みなのでそのまま使える)
+        modalBg?.addEventListener('click', (event) => {
+            // event.target が modalBg 自身の場合のみ閉じる (モーダル内部のクリックでは閉じない)
+            if (event.target === modalBg) {
+                modalBg.style.display = 'none';
+            }
+        });
+
+    </script>
+
+</body>
+</html>

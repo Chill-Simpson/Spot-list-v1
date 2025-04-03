@@ -1,0 +1,292 @@
+/* sort_spots_style.css */
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px 60px; /* 下部にタブの高さ分のパディングを追加 */
+    background-color: #1E2C2A; /* ダークグリーングレー背景 */
+    color: #f0f0f0; /* デフォルト文字色を白系に */
+}
+
+h1 {
+    color: #ffffff; /* 見出しの色を白に */
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 1.5em;
+}
+
+#sortable-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0; /* 下にマージン追加 */
+    background: #2A3A38; /* リスト全体の背景色 (少し暗め) */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+#sortable-list li {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #3A4A48; /* 区切り線の色 */
+    cursor: move;
+    /* background: #3A5A56; */ /* liの背景はリストと同じか少し変える */
+    transition: background-color 0.2s;
+    gap: 5px;
+    font-size: 14px;
+    color: #f0f0f0; /* li内のデフォルト文字色 */
+}
+
+#sortable-list li:last-child {
+    border-bottom: none;
+}
+
+#sortable-list li:hover {
+    background-color: #3A4A48; /* ホバー時の背景色 */
+}
+
+.handle {
+    padding-right: 5px;
+    color: #aaa; /* ハンドルの色 */
+    cursor: grab;
+}
+
+.handle:active {
+    cursor: grabbing;
+}
+
+.spot-row { /* 表示順 */
+    color: #aaa; /* 数字の色 */
+    min-width: 30px;
+    text-align: right;
+    padding-right: 5px;
+    font-size: 12px;
+}
+
+.spot-name { /* スポット名 */
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-weight: bold;
+    min-width: 100px;
+    color: #ffffff; /* スポット名は白 */
+    white-space: nowrap; /* 折り返さない（必要なら変更） */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spot-prefecture { /* 都道府県 */
+    color: #bbb; /* 都道府県の色 */
+    min-width: 60px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.spot-team { /* チーム - 色は data 属性で設定されるので変更不要 */
+    min-width: 35px;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 12px;
+    color: white; /* 文字色は白固定 */
+}
+.spot-team[data-team="your guild"] { background-color: #2ecc71; }
+.spot-team[data-team="enemy"] { background-color: #e74c3c; }
+.spot-team[data-team="neutral"] { background-color: #95a5a6; }
+
+
+/* === 拠点レベルバッジ (調整済み) === */
+.spot-level { /* デフォルトのテキスト表示（'-'など） */
+    color: #aaa;
+    min-width: 30px;
+    text-align: center;
+    font-size: 12px;
+}
+.spot-level.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 30px; /* ↑と合わせる */
+    font-size: 11px;
+    line-height: 1.2;
+    background-color: rgba(22, 33, 30, 0.85);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+}
+.spot-level.s-rank { color: #FF5252; }
+.spot-level.a-rank { color: #BB86FC; }
+.spot-level.b-rank { color: #3D5AFE; }
+.spot-level.c-rank { color: #00E5B9; }
+.spot-level.d-rank { color: #E0E0E0; }
+
+
+.spot-identified { /* 特定状況 */
+    min-width: 30px;
+    text-align: center;
+    color: #aaa; /* デフォルト色 */
+    font-size: 12px;
+}
+/* 特定済みの場合 */
+.spot-identified[title="特定済み"] {
+    font-weight: bold;
+    color: #5dade2; /* 少し明るい青 */
+}
+
+
+#saveOrderButton {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 20px 0;
+    background-color: #269973; /* Spot List View のボタン色に合わせる */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+#saveOrderButton:hover:not(:disabled) {
+    background-color: #1f7f5f; /* ホバー色 */
+}
+
+#saveOrderButton:disabled {
+    background-color: #555; /* 無効時の色 */
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* メッセージエリア (ダークテーマ用) */
+#messageArea {
+    text-align: center;
+    margin: 15px 0;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-weight: bold;
+    display: none; /* 初期非表示はJSで制御 */
+    border: 1px solid transparent;
+}
+.message-success {
+    background-color: #2f6f2f; /* 濃い緑 */
+    color: #dff0d8;
+    border-color: #3c763d;
+}
+.message-error {
+    background-color: #8a3a3a; /* 濃い赤 */
+    color: #f2dede;
+    border-color: #a94442;
+}
+.message-info { /* あまり使わないかも */
+    background-color: #3a5a56; /* リスト背景などに合わせる */
+    color: #d9edf7;
+    border-color: #4a5a58;
+}
+
+/* ローディングスピナー (ダークテーマ用) */
+.loading-spinner-container {
+    /* display, position などは変更なし */
+    background-color: rgba(30, 44, 42, 0.8); /* 背景を少し暗く */
+}
+.spinner {
+    border: 8px solid #555; /* ボーダー基本色 */
+    border-top: 8px solid #269973; /* ボタン色に合わせる */
+    /* width, height, animation は変更なし */
+}
+
+/* トースト通知 (ダークテーマに合っているので変更少なめ) */
+.toast {
+    background-color: rgba(50, 50, 50, 0.9); /* 少し調整 */
+    color: white;
+    /* 他は変更なし */
+}
+
+/* SortableJS用クラス (ダークテーマに合わせて調整) */
+.sortable-ghost {
+    opacity: 0.6;
+    background: #4A5A58; /* ゴースト要素の背景色 */
+}
+.sortable-chosen {
+    background: #3A4A48; /* 選択中要素の背景色 */
+}
+
+
+/* === スマホ表示用の調整 (画面幅480px以下に適用) === */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 0 10px;
+        margin: 15px auto;
+    }
+    h1 { font-size: 1.3em; margin-bottom: 20px; }
+    #sortable-list li { padding: 8px 10px; gap: 4px; font-size: 13px; }
+    .handle { padding-right: 4px; }
+    .spot-row { min-width: 22px; font-size: 11px; padding-right: 4px; color: #999; }
+    .spot-name { min-width: 80px; white-space: normal; overflow-wrap: break-word; line-height: 1.3; font-size: 13px; color: #fff; }
+    .spot-prefecture { min-width: 45px; font-size: 11px; color: #aaa; }
+    .spot-team { min-width: 30px; font-size: 10px; padding: 1px 3px; }
+    .spot-level { min-width: 25px; font-size: 11px; color: #999; }
+    .spot-level.badge { min-width: 25px; font-size: 11px; padding: 1px 5px; }
+    .spot-identified { min-width: 25px; font-size: 11px; color: #999; }
+    .spot-identified[title="特定済み"] { color: #5dade2; }
+    #saveOrderButton { padding: 11px; font-size: 15px; margin-top: 15px; }
+    .toast { padding: 12px 20px; font-size: 14px; bottom: 20px; }
+    .toast.show { bottom: 40px; }
+}
+
+/* === さらに狭い画面用 (例: 370px以下) の微調整 === */
+@media screen and (max-width: 370px) {
+    #sortable-list li { padding: 7px 8px; gap: 3px; font-size: 12px; }
+    .spot-name { min-width: 65px; font-size: 12px; }
+    .spot-prefecture { min-width: 40px; font-size: 10px; }
+    .spot-team { font-size: 9px; padding: 1px 2px; }
+    .spot-level.badge { min-width: 23px; font-size: 10px; padding: 1px 4px; }
+    .spot-level:not(.badge) { min-width: 23px; font-size: 10px; }
+    .spot-identified { min-width: 23px; font-size: 10px; }
+}
+
+/* --- タブナビゲーション --- */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    background-color: #2A3A38;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
+    z-index: 1100;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    height: 100%;
+    color: #aaa;
+    text-decoration: none;
+    text-align: center;
+    padding: 4px 0;
+    transition: color 0.2s;
+}
+
+.nav-item:hover {
+    color: #fff;
+}
+
+.nav-text {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.nav-item.active {
+    color: #2ecc71;
+    font-weight: bold;
+}

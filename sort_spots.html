@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スポット表示順設定</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <link rel="stylesheet" href="sort_spots_style.css">
+    </head>
+
+<body>
+    <h1>スポット表示順設定</h1>
+
+    <!-- タブナビゲーション -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-item" id="nav-list">
+            <span class="nav-text">リスト</span>
+        </a>
+        <a href="map_view.html" class="nav-item" id="nav-map">
+            <span class="nav-text">マップ</span>
+        </a>
+        <a href="sort_spots.html" class="nav-item active" id="nav-sort">
+            <span class="nav-text">並び替え</span>
+        </a>
+    </nav>
+
+    <div id="loadingSpinner" class="loading-spinner-container" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+    <div id="messageArea"></div>
+    <ul id="sortable-list"></ul>
+    <button id="saveOrderButton" disabled>並び順を保存</button>
+    <div id="toast-notification" class="toast"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sortableList = document.getElementById('sortable-list');
+            const saveButton = document.getElementById('saveOrderButton');
+            const messageArea = document.getElementById('messageArea');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const toastElement = document.getElementById('toast-notification');
+            let sortableInstance = null;
+
+            const gasUrl = 'https://script.google.com/macros/s/AKfycbyZcsBme8_AlILkG-v5lcmJZfwxRsKArmyVFZs8NfiUhCYiAXnkqnn_krVJ5IQe0sFqDg/exec';
+
+            function showMessage(text, type = 'error') {
+                messageArea.textContent = text;
+                messageArea.className = `message-${type}`;
+                messageArea.style.display = 'block';
+                setTimeout(() => { hideMessage(); }, 5000);
+            }
+            function hideMessage() {
+                messageArea.textContent = '';
+                messageArea.style.display = 'none';
+            }
+
+            let toastTimeoutId = null;
+            function showToast(message) {
+                if (!toastElement) return;
+
+                toastElement.textContent = message;
+                toastElement.classList.add('show');
+
+                if (toastTimeoutId) {
+                    clearTimeout(toastTimeoutId);
+                }
+
+                const removeToast = () => {
+                    toastElement.classList.remove('show');
+                    if (toastTimeoutId) clearTimeout(toastTimeoutId);
+                    toastElement.removeEventListener('click', removeToast);
+                };
+                toastElement.addEventListener('click', removeToast);
+
+                toastTimeoutId = setTimeout(() => {
+                    removeToast();
+                }, 3000);
+            }
+
+            async function loadSortableList() {
+                hideMessage();
+                sortableList.innerHTML = '<li>データ読み込み中...</li>';
+                saveButton.disabled = true;
+
+                if (!gasUrl || gasUrl.includes('AKfyc') === false) {
+                    showMessage('エラー: GASのURLが正しく設定されていないようです。コード内の gasUrl を確認してください。', 'error');
+                    sortableList.innerHTML = '<li>GAS URL設定エラー</li>';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(gasUrl + '?action=getSortableSpots');
+                    if (!response.ok) {
+                        throw new Error(`サーバー応答エラー: ${response.status} ${response.statusText}`);
+                    }
+                    const responseData = await response.json();
+                    if (responseData.error) {
+                        console.error("GAS Error Details:", responseData.debug);
+                        throw new Error(`GAS側エラー: ${responseData.error}`);
+                    }
+                    const spots = responseData.data;
+                    console.log("GAS Debug Info:", responseData.debug);
+
+                    sortableList.innerHTML = '';
+
+                    if (!Array.isArray(spots)) {
+                        console.error('受信データ内の .data が配列ではありません:', responseData);
+                        throw new Error('サーバーから予期しない形式のデータを受信しました。');
+                    }
+                    if (spots.length === 0) {
+                        sortableList.innerHTML = '<li>表示するスポットがありません。</li>';
+                        saveButton.disabled = true;
+                        return;
+                    }
+
+                    spots.forEach((spot, index) => {
+                        const li = document.createElement('li');
+                        li.dataset.id = spot.id;
+                        const handle = document.createElement('span'); handle.className = 'handle spot-item'; handle.title = 'ドラッグして並び替え'; handle.textContent = '☰';
+                        const rowSpan = document.createElement('span'); rowSpan.className = 'spot-row spot-item'; rowSpan.textContent = `${index + 1}.`; rowSpan.title = `元のシート行: ${spot.sheetRow || '?'}`;
+                        const nameSpan = document.createElement('span'); nameSpan.className = 'spot-name spot-item'; nameSpan.textContent = spot.name || '(名前なし)'; nameSpan.title = spot.name || '(名前なし)';
+                        const prefectureSpan = document.createElement('span'); prefectureSpan.className = 'spot-prefecture spot-item'; prefectureSpan.textContent = spot.prefecture || '-'; prefectureSpan.title = spot.prefecture || '都道府県不明';
+                        const teamSpan = document.createElement('span'); teamSpan.className = 'spot-team spot-item'; const teamTextMap = { 'your guild': '自軍', 'enemy': '敵軍', 'neutral': '未' }; teamSpan.textContent = teamTextMap[spot.team] || '不明'; teamSpan.dataset.team = spot.team;
+                        
+                        // レベル
+                        const levelSpan = document.createElement('span');
+                        levelSpan.className = 'spot-level spot-item'; // 基本クラス
+                        const level = spot.level; // S, A, B, C, D または空文字
+
+                        if (level) { // レベルが設定されている場合
+                            levelSpan.classList.add('badge', 'level'); // バッジ用のクラスを追加
+                            levelSpan.textContent = level; // レベル文字 (S, A など) を表示
+                            // レベルに応じたランククラスを追加
+                            switch (level) {
+                                case 'S': levelSpan.classList.add('s-rank'); break;
+                                case 'A': levelSpan.classList.add('a-rank'); break;
+                                case 'B': levelSpan.classList.add('b-rank'); break;
+                                case 'C': levelSpan.classList.add('c-rank'); break;
+                                case 'D': levelSpan.classList.add('d-rank'); break;
+                            }
+                        } else { // レベルが設定されていない場合
+                            levelSpan.textContent = '-'; // ハイフンを表示
+                            // この場合、badgeやlevelクラスは付かない
+                        }
+                        levelSpan.dataset.level = spot.level; // データ属性は残しても良い
+                        
+                        const identifiedSpan = document.createElement('span'); identifiedSpan.className = 'spot-identified spot-item'; const identifiedTextMap = { '特定済み': '特', '未特定': '未' }; identifiedSpan.textContent = identifiedTextMap[spot.identified] || '？'; identifiedSpan.title = spot.identified || '特定状況不明';
+
+                        li.appendChild(handle); li.appendChild(rowSpan); li.appendChild(nameSpan); li.appendChild(prefectureSpan); li.appendChild(teamSpan); li.appendChild(levelSpan); li.appendChild(identifiedSpan);
+                        sortableList.appendChild(li);
+                    });
+
+                    saveButton.disabled = false;
+
+                    if (sortableInstance) { sortableInstance.destroy(); }
+                    sortableInstance = new Sortable(sortableList, { handle: '.handle', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen', onEnd: function(evt) { console.log('並び替え完了:', evt); } });
+
+                    hideMessage();
+
+                } catch (error) {
+                    console.error('リストの読み込みエラー:', error);
+                    showMessage(`リスト読み込みエラー: ${error.message}`, 'error');
+                    sortableList.innerHTML = `<li>読み込みに失敗しました。ページを再読み込みしてください。</li>`;
+                    saveButton.disabled = true;
+                }
+            }
+
+            saveButton.addEventListener('click', async () => {
+                if (!sortableInstance) {
+                    showMessage('エラー: 並び替えリストが初期化されていません。', 'error');
+                    return;
+                }
+
+                let operationSuccess = false;
+
+                saveButton.disabled = true;
+                hideMessage();
+                loadingSpinner.style.display = 'flex';
+
+                const orderedIds = sortableInstance.toArray();
+                console.log('保存するID配列:', orderedIds);
+                const formData = new URLSearchParams();
+                formData.append('action', 'updateSortOrder');
+                formData.append('orderedIds', JSON.stringify(orderedIds));
+
+                try {
+                    const response = await fetch(gasUrl, {
+                        method: 'POST',
+                        body: formData.toString(),
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                    });
+
+                    if (!response.ok) {
+                         let errorBody = '';
+                         try { errorBody = await response.text(); } catch (e) {}
+                         throw new Error(`サーバー応答エラー: ${response.status} ${response.statusText}. ${errorBody}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.result === 'success') {
+                        operationSuccess = true;
+                        console.log('保存成功:', result.message);
+                    } else {
+                        throw new Error(`保存処理エラー: ${result.message || '不明なエラー'}`);
+                    }
+
+                } catch (error) {
+                    console.error('保存エラー:', error);
+                    showMessage(`保存エラー: ${error.message}`, 'error');
+                    operationSuccess = false;
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                    saveButton.disabled = false;
+
+                    if (operationSuccess) {
+                         showToast('並び順を保存しました！');
+                    }
+                }
+            });
+
+            loadSortableList();
+        });
+    </script>
+</body>
+
+</html>

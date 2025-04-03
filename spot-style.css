@@ -1,0 +1,1038 @@
+html, body {
+  min-height: 100%;
+  height: auto;
+  overflow-y: auto; /* 縦スクロールを有効にする */
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0 10px; /* 左右のパディングを10pxに設定 */
+  background: #1E2C2A; /* #f5f5f5から変更 - ダークグリーングレー */
+}
+
+.open-btn {
+  position: fixed;
+  bottom: 60px; /* 少し下げる (タブバー(高さ60px) + 10pxマージン) */
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #269973; /* #007BFFから変更 - 深いグリーン */
+  color: white;
+  font-size: 30px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-bg {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 9998;
+}
+
+.modal {
+  width: 96%;
+  max-width: 700px;
+  padding: 24px;
+  border-radius: 24px;
+  background-color: #fff;
+  font-size: 16px;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.35);
+  z-index: 100;
+  box-sizing: border-box;
+  max-height: 90vh; /* 画面の高さの90%を最大高とする */
+  overflow-y: auto; /* 縦方向に内容がはみ出たらスクロールバーを表示 */
+}
+
+.modal h1 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  display: block;
+  text-align: center;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  font-size: 28px;
+  border: none;
+  border-radius: 50%;
+  background-color: #28a745;
+  color: white;
+  cursor: pointer;
+}
+
+.modal label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #333;
+  font-weight: bold;
+}
+
+/* テキスト入力とテキストエリアのスタイル */
+.modal input[type="text"],
+.modal textarea {
+  width: 100%;
+  padding: 12px;  /* 例: パディングを少し大きく */
+  font-size: 18px; /* 例: 文字サイズを少し大きく */
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+/* 他の入力タイプ (fileなど) のスタイル */
+.modal input:not([type="text"]) {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+/* select ボックス内の選択済み文字も含めて統一 */
+.modal select,
+.modal-details select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;     /* 入力ボックスと揃える */
+  border: 1px solid #ddd; /* 入力ボックスと揃える */
+  box-sizing: border-box;
+  background-color: #fff;  /* 背景色を白に */
+  cursor: pointer;         /* カーソルをポインターに */
+  font-size: 16px;         /* 元のフォントサイズ */
+  margin-bottom: 16px;     /* 元のマージン */
+  height: auto;
+}
+
+/* ドロップダウン展開時の各optionはデフォルトサイズに */
+.modal select option,
+.modal-details select option {
+  font-size: 14px !important;         /* ドロップダウン内の選択肢は強制的に小さく */
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* デフォルトの選択肢のスタイル */
+select option.default-option {
+  font-size: 16px;         /* 他のフォーム要素と同じサイズに */
+  font-weight: bold;       /* 太字に */
+  color: #555;            /* 濃いめのグレーに */
+}
+
+/* 初期選択肢（プレースホルダー）のスタイル */
+.modal select option[value=""],
+.modal-details select option[value=""] {
+  font-size: 16px;         /* 他のフォーム要素と同じサイズに */
+  font-weight: normal;     /* 通常の太さに */
+  color: #777;            /* 薄めのグレーに */
+}
+
+/* 特定の初期選択肢のスタイル */
+.modal select option[value="neutral"],
+.modal-details select option[value="neutral"] {
+  font-size: 16px;         /* 他のフォーム要素と同じサイズに */
+  font-weight: normal;     /* 通常の太さに */
+  color: #777;            /* 薄めのグレーに */
+}
+
+.modal button[type="submit"] {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.modal button[type="submit"]:hover {
+  background-color: #45a049;
+}
+
+.delete-button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1.2px;
+}
+
+.delete-button:hover {
+  background-color: #c0392b;
+}
+
+.modal-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  display: block;
+  max-height: 50vh; /* 画面高さの半分まで */
+}
+
+.modal .hidden {
+  display: none;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modalCloseButton {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.modalCloseButton:hover {
+  color: #000;
+}
+
+/* 🔳 ギャラリー全体 */
+.spot-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3列固定に戻す */
+  gap: 10px;              /* ギャップの値を少し広げる */
+  padding: 10px;          /* パディングも少し広げる */
+  width: 100%;
+  max-width: 1200px;       
+  margin: 20px auto;      /* 上下のマージンを確保 */
+}
+
+/* 🖼️ 画像1枚分のカード */
+.spot-card {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;     /* 角丸をやや強調して柔らかく */
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  background: #fff;
+  transition: transform 0.2s;
+  position: relative;
+}
+
+.spot-card:hover {
+  transform: scale(1.03);
+}
+
+.spot-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.level-tag {
+  position: absolute;
+  top: 14px;
+  right: 14px;  /* 右上に配置 */
+  left: auto;    /* 左側の位置指定を解除 */
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 26px;
+  font-weight: 900;
+  border-radius: 12px;
+  letter-spacing: 0px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.25);
+  z-index: 2;
+}
+
+/* 🔵 都道府県バッジ（右上） */
+.pref-tag {
+  position: absolute;
+  top: 5px;              /* さらに隅へ */
+  right: 5px;            /* さらに隅へ */
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 2px 5px;       /* パディングをさらに小さく */
+  font-size: 10px;        /* フォントサイズをさらに小さく */
+  font-weight: bold;
+  border-radius: 5px;     /* 角丸調整 */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  z-index: 3; /* オーバーレイより手前 */
+}
+
+.badge {
+  position: absolute;
+  padding: 3px 7px;       /* パディングをさらに小さく */
+  border-radius: 7px;     /* 角丸調整 */
+  color: white;
+  font-size: 11px;        /* フォントサイズをさらに小さく */
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 3; /* オーバーレイより手前 */
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap; /* 基本的に折り返さない */
+}
+
+/* レベルバッジの共通スタイル */
+.badge.level {
+  background-color: rgba(22, 33, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* 文字色は .s-rank などで指定 */
+}
+
+.badge.green { background-color: #2ecc71; }
+.badge.red { background-color: #e74c3c; }
+.badge.black { background-color: #000000; color: white; }
+.badge.blue { background-color: #3498db; }
+.badge.gray { background-color: #95a5a6; }
+
+/* 📱 スマホ対応 */
+@media screen and (max-width: 480px) {
+  .spot-gallery {
+    max-width: 100%;
+    padding: 10px;
+  }
+  
+  .spot-card {
+    max-width: 100px;
+  }
+
+  .modal {
+    width: 100%;
+    padding: 24px 16px 32px;
+    font-size: 20px;
+  }
+
+  .modal h1 {
+    font-size: 20px; /* 縮小: 28px→20px */
+    margin-bottom: 20px; /* 縮小: 24px→20px */
+  }
+
+  /* === 1. テキスト入力ボックスとそのラベル (さらに小さく) === */
+  .modal input[type="text"],
+  .modal input[type="file"], /* 画像アップロードも含む */
+  .modal textarea,
+  .modal-details input[type="text"] /* 編集モーダルのテキスト入力 */
+  {
+    font-size: 16px;      /* 例: スマホでの統一文字サイズ */
+    padding: 8px;         /* 例: スマホでの統一パディング */
+    min-height: 36px;     /* 例: スマホでの高さを確保 */
+    margin-bottom: 10px;  /* 例: スマホでのマージン */
+    border-radius: 6px;   /* 例: スマホでの角丸 */
+  }
+
+  /* === 新規追加: 重要項目のラベルも大きく === */
+  .modal label[for="name"],      /* スポット名ラベル */
+  .modal label[for="lat"],       /* 緯度ラベル */
+  .modal label[for="lng"],       /* 経度ラベル */
+  .modal label[for="address"],   /* 住所ラベル */
+  .modal label[for="owner"]      /* 登録者名ラベル */
+  {
+    font-size: 14px;      /* ラベルも大きく */
+    font-weight: bold;    /* 太字に */
+    margin-bottom: 3px;   /* 下のマージンを調整 */
+    color: #333;          /* 色も濃く */
+  }
+
+  /* === 2. 選択ボックスとそのラベル === */
+  .modal select,
+  .modal-details select {
+    /* ボックスサイズは前回「イイ感じ」の状態を維持 (値は前々回のものを参考に調整) */
+    padding: 4px 6px;     /* 例: 前回の「小さめ」padding */
+    min-height: 30px;     /* 例: 前回の「小さめ」min-height */
+    margin-bottom: 8px;   /* 例: 前回の「小さめ」margin-bottom */
+    border-radius: 8px;   /* 例: 前回の「小さめ」border-radius */
+
+    /* ★選択後に表示されるテキストサイズを大きくする★ */
+    font-size: 16px !important; /* 例: 16px に設定 (適宜調整) */
+    line-height: normal; /* line-heightが影響しないようにnormalに */
+  }
+
+  /* 選択ボックスのドロップダウンリスト内の文字サイズ (こちらは大きくしない) */
+  .modal select option,
+  .modal-details select option {
+    font-size: 12px !important; /* 例: 12px程度 */
+    padding: 5px 8px;
+  }
+
+  /* === 共通: ラベル (テキスト入力・選択ボックス共通で小さく) === */
+  .modal label,
+  .modal-details label {
+    font-size: 10px;      /* ラベルは共通で非常に小さく */
+    margin-bottom: 2px;   /* 下のマージンを詰める */
+    font-weight: normal;
+    display: block;       /* 念のため block 要素に */
+  }
+
+  /* === 3. 説明書き (小さく) === */
+  .modal .help-text {
+    display: block;
+    font-size: 9px;       /* さらに小さく */
+    color: #999;         /* 少しだけ濃くする場合 */
+    margin-top: -1px;     /* ラベルとの隙間調整 */
+    margin-bottom: 3px;   /* 下の入力欄との隙間調整 */
+    line-height: 1.1;
+    font-weight: normal;
+  }
+
+  /* 編集モーダルにも .help-text が使われる場合はこちらも調整 */
+  .modal-details .help-text {
+    /* 同様のスタイルを適用 */
+    display: block;
+    font-size: 9px;
+    color: #999;
+    margin-top: -1px;
+    margin-bottom: 3px;
+    line-height: 1.1;
+    font-weight: normal;
+  }
+
+  /* === その他: ボタンサイズ (テキスト入力に合わせて小さく) === */
+  .modal button[type="submit"],
+  .modal .save-button,
+  .delete-button {
+    font-size: 11px;
+    padding: 4px 8px;
+    margin-top: 6px;
+    border-radius: 2px;
+  }
+
+  /* === その他: 編集モーダルの段落 (テキスト入力に合わせて調整) === */
+  .modal-details p {
+    font-size: 11px;
+    margin: 4px 0;
+    line-height: 1.2;
+  }
+  
+  .modal-details strong { /* 編集モーダル内の項目名 */
+    font-size: 11px; /* こちらも小さくする場合 */
+  }
+}
+
+/* 📸 詳細モーダル */
+#spotModal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  /* overflow: auto; */
+  background-color: rgba(0, 0, 0, 0.6);
+  /* Flexboxを使って中央寄せに変更 */
+  /* display: flex; */ /* 矛盾する宣言のため削除 */
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0; /* 上下に少し余白を設ける */
+}
+
+.modal-view {
+  background-color: #fff;
+  /* margin: 10% auto; */
+  margin: 5vh auto 0; /* 上部に少しマージンを追加 */
+  padding: 24px;
+  padding-bottom: 70px; /* 下部にタブの高さ(50px) + α のパディングを追加 */
+  border-radius: 24px;
+  width: 96%;
+  max-width: 700px;
+  position: relative;
+  z-index: 1001;
+  /* font-size: 16px; */ /* スマホ表示用に下部で上書きされる場合があるためコメントアウト推奨 */
+  box-shadow: 0 14px 36px rgba(0,0,0,0.35);
+  /* 高さとスクロールを追加 */
+  max-height: 80vh; /* 画面の高さの80%を最大高とする */
+  overflow-y: auto; /* 縦方向に内容がはみ出たらスクロールバーを表示 */
+}
+
+.modal-details input,
+.modal-details select {
+  width: 100%;
+  padding: 10px 12px; /* 基本パディングを調整 */
+  font-size: 16px;  /* 基本フォントサイズ */
+  border-radius: 8px; /* 角丸調整 */
+  border: 1px solid #ccc; /* 枠線調整 */
+  margin-bottom: 16px; /* 下マージン調整 */
+  box-sizing: border-box;
+  height: auto;     /* 高さを自動に */
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.modal-details p {
+  margin: 12px 0;
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+.modal-details strong {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.close-button {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #000;
+}
+
+.save-button {
+  display: block; /* display指定を追加 */
+  width: 100%;
+  padding: 12px;     /* 基準とするパディング */
+  margin-top: 24px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;  /* 基準とする角丸 */
+  cursor: pointer;
+  font-size: 16px;   /* 基準とするフォントサイズ */
+  font-weight: bold;
+  letter-spacing: 1.2px; /* 文字間隔 */
+  transition: background-color 0.2s; /* トランジション追加 */
+}
+
+.save-button:hover {
+  background-color: #218838;
+}
+
+/* 削除ボタン (保存ボタンにスタイルを合わせる) */
+.delete-button {
+  width: 100%;
+  padding: 12px;      /* ★変更: 保存ボタンに合わせる */
+  margin-top: 16px; /* 保存ボタンとの間隔 */
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 8px;   /* ★変更: 保存ボタンに合わせる */
+  cursor: pointer;
+  font-size: 16px;    /* ★変更: 保存ボタンに合わせる */
+  font-weight: bold; /* 太さは維持 */
+  letter-spacing: 1.2px; /* 文字間隔 */
+  transition: background-color 0.2s; /* トランジション追加 */
+}
+
+.delete-button:hover {
+  background-color: #c0392b;
+}
+
+/* 詳細モーダル内のラベルも同じサイズに統一 */
+.modal-details label {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* 🔍 フィルター機能のスタイル */
+.filter-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px; /* 行間のギャップ */
+  margin: 16px auto;
+  width: 95%; /* ★変更: 最大幅ではなく、常に画面幅の95%にする */
+  max-width: 600px; /* ★変更: PCでの最大幅を調整 */
+  padding: 0; /* ★変更: 左右パディングをなくす */
+}
+
+/* フィルター行 */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap; /* 折り返しは念のため残す */
+  justify-content: center;
+  gap: 10px; /* ★変更: 項目間のギャップをさらに狭める */
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* フィルター項目のコンテナ */
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+  min-width: 0; /* アイテムが縮小できるように */
+}
+
+/* キーワード以外の項目は常に2列を試みる */
+.filter-item:not(.keyword-item) {
+    flex-basis: calc(50% - 5px); /* ★常に適用: gap 10px の半分を引く */
+    flex-grow: 1; /* 空きスペースを埋める */
+}
+
+/* キーワード用は常に全幅 */
+.filter-item.keyword-item {
+   flex-basis: 100%;
+}
+
+/* フィルターラベル */
+.filter-label {
+  font-size: 12px; /* ★変更: さらに小さく */
+  margin-bottom: 3px;
+  color: #c7d3d1; /* 薄い緑色 */
+  font-weight: bold;
+  display: block;
+}
+
+/* フィルターセレクトボックスと入力ボックス */
+.filter-select,
+.filter-input {
+  width: 100%;
+  font-size: 12px; /* ★変更: さらにフォントサイズ縮小 */
+  padding: 4px 6px; /* ★変更: さらにパディング縮小 */
+  border: 1px solid #2A4A46;
+  border-radius: 4px; /* ★変更: より小さく */
+  background: #3A5A56;
+  color: #ffffff;
+  min-height: 30px; /* ★変更: 高さを調整 */
+  margin-bottom: 6px;
+}
+
+.filter-input::placeholder {
+  color: #aab;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+}
+
+/* キーワード検索の入力ボックス */
+#keywordFilter.filter-input {
+  padding: 4px 8px;   /* ★変更: 上下のパディングを少し確保 (3px -> 4px) */
+  font-size: 13px;    /* ★変更: 入力文字のサイズを少し上げる (例: 11px -> 13px) */
+  height: auto;
+  line-height: 1.4; /* 行の高さを少し確保 */
+  width: 90%;
+  max-width: 800px;
+  margin: 10px auto;
+  display: block;
+}
+
+/* ★追加★ プレースホルダーのスタイル */
+#keywordFilter.filter-input::placeholder {
+  font-size: 11px;    /* ★プレースホルダーは小さいサイズを維持 */
+  color: #aaa;       /* プレースホルダーの色 */
+  opacity: 1;         /* 念のため不透明度を指定 */
+  vertical-align: middle; /* 垂直位置の調整（効かない場合もある） */
+}
+
+/* ★追加★ 古いブラウザ用のベンダープレフィックス */
+#keywordFilter.filter-input::-webkit-input-placeholder { /* Chrome, Safari, Opera */
+  font-size: 11px;
+  color: #aaa;
+  vertical-align: middle;
+}
+#keywordFilter.filter-input::-moz-placeholder { /* Firefox 19+ */
+  font-size: 11px;
+  color: #aaa;
+  opacity: 1;
+  vertical-align: middle;
+}
+#keywordFilter.filter-input:-ms-input-placeholder { /* IE 10+ */
+  font-size: 11px !important; /* IEは !important が必要な場合あり */
+  color: #aaa !important;
+  vertical-align: middle;
+}
+#keywordFilter.filter-input::-ms-input-placeholder { /* Microsoft Edge */
+  font-size: 11px;
+  color: #aaa;
+  vertical-align: middle;
+}
+
+/* ローディングアイコン */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  width: 100%;
+  margin: 30px auto;
+}
+
+.loading-spinner {
+  border: 8px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  border-top: 8px solid #269973; /* +ボタンと同じ色 */
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ローディング中のテキスト */
+.loading-text {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* モーダル内のエラーメッセージスタイル */
+.modal .error-message {
+  color: #f44336;
+  font-size: 18px;
+  margin-top: -16px;
+  margin-bottom: 16px;
+}
+
+/* モーダル内の必須項目マーク */
+.modal label.required::after {
+  content: "*";
+  color: #f44336;
+  margin-left: 4px;
+}
+
+/* モーダル内のヘルプテキスト */
+.modal .help-text {
+  display: block;      /* 改行させる */
+  font-size: 10px;      /* ラベルよりさらに小さい文字 */
+  color: #888;         /* 薄いグレー文字 */
+  margin-top: -2px;     /* ラベルとの隙間を調整（負の値で近づける） */
+  margin-bottom: 4px;   /* 下の入力欄との隙間を確保 */
+  line-height: 1.1;
+  font-weight: normal;
+}
+
+/* モーダル内のグループ化 */
+.modal .form-group {
+  margin-bottom: 32px;
+}
+
+/* モーダル内のボタングループ */
+.modal .button-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.modal .button-group button {
+  flex: 1;
+}
+
+/* モーダル内のキャンセルボタン */
+.modal .cancel-button {
+  background-color: #f44336;
+}
+
+.modal .cancel-button:hover {
+  background-color: #d32f2f;
+}
+
+/* モーダル内のプレビュー画像 */
+.modal .image-preview {
+  max-width: 100%;
+  max-height: 300px;
+  margin: 16px 0;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+/* モーダル内のローディングインジケーター */
+.modal .loading-indicator {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.modal .loading-indicator.active {
+  display: flex;
+}
+
+/* モーダル内の成功メッセージ */
+.modal .success-message {
+  color: #4CAF50;
+  font-size: 18px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* モーダル内の警告メッセージ */
+.modal .warning-message {
+  color: #ff9800;
+  font-size: 18px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* モーダル内の情報メッセージ */
+.modal .info-message {
+  color: #2196F3;
+  font-size: 18px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* モーダル内のデバッグ情報 */
+.modal .debug-info {
+  font-size: 14px;
+  color: #666;
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  display: none;
+}
+
+.modal .debug-info.visible {
+  display: block;
+}
+
+/* モーダル内のバリデーションエラー */
+.modal .validation-error {
+  border-color: #f44336;
+  background-color: #fff8f8;
+}
+
+.modal .validation-error:focus {
+  border-color: #f44336;
+  box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+/* モーダル内のツールチップ */
+.modal .tooltip {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+  color: #666;
+  cursor: help;
+}
+
+.modal .tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 14px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+/* モーダル内のプレースホルダー */
+.modal input::placeholder,
+.modal textarea::placeholder,
+.modal select::placeholder {
+  color: #999;
+  opacity: 0.7;
+}
+
+/* モーダル内のフォーカス状態 */
+.modal input:focus,
+.modal textarea:focus,
+.modal select:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+/* モーダル内の無効化状態 */
+.modal input:disabled,
+.modal textarea:disabled,
+.modal select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* モーダル内の読み取り専用状態 */
+.modal input[readonly],
+.modal textarea[readonly],
+.modal select[readonly] {
+  background-color: #f9f9f9;
+  cursor: default;
+}
+
+/* モーダル内の自動補完 */
+.modal input:-webkit-autofill,
+.modal input:-webkit-autofill:hover,
+.modal input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #333;
+  -webkit-box-shadow: 0 0 0px 1000px white inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* モーダル内のスピナー */
+.modal input[type="number"]::-webkit-inner-spin-button,
+.modal input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* モーダル内のカレンダーアイコン */
+.modal input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+.modal input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* モーダル内のクリアボタン */
+.modal input[type="search"]::-webkit-search-decoration,
+.modal input[type="search"]::-webkit-search-cancel-button,
+.modal input[type="search"]::-webkit-search-results-button,
+.modal input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* モーダル内のカスタムスクロールバー */
+.modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* モーダル内のレスポンシブ対応 */
+@media screen and (max-width: 768px) {
+  .modal {
+    width: 95%;
+    padding: 32px 24px 40px;
+    font-size: 24px;
+  }
+
+  .modal input,
+  .modal textarea,
+  .modal select {
+    font-size: 20px;
+    padding: 16px;
+  }
+
+  .modal label {
+    font-size: 20px;
+  }
+
+  .modal button[type="submit"] {
+    font-size: 20px;
+    padding: 16px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .modal {
+    width: 100%;
+    padding: 24px 16px 32px;
+    font-size: 20px;
+  }
+
+  .modal input,
+  .modal textarea,
+  .modal select {
+    font-size: 18px;
+    padding: 14px;
+  }
+
+  .modal label {
+    font-size: 18px;
+  }
+
+  .modal button[type="submit"] {
+    font-size: 18px;
+    padding: 14px;
+  }
+}
+
+/* セレクトボックスのオプション */
+.modal-details select option {
+  font-size: 15px;
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* 特定の select だけをさらに小さくする */
+.modal-details select.modal-select-small {
+  padding: 6px 8px;   /* さらにパディングを小さく */
+  font-size: 14px;    /* さらにフォントサイズを小さく */
+}
+
+/* ★追加: ページタイトル用のスタイル */
+h1.page-title { /* HTML側で h1 に class="page-title" を付ける */
+    color: #ffffff;
+    text-align: center;
+    font-size: 1.8em; /* お好みのサイズに */
+    margin-top: 20px; /* 上のスペース */
+    margin-bottom: 24px; /* フィルターとのスペース */
+}
+
+/* ★修正★ フィルター行のギャップ (2列部分) */
+/* :nth-child(n+2) で2行目と3行目のフィルター行を選択 */
+.filter-container > .filter-row:nth-child(n+2) {
+   gap: 8px; /* ★変更: 項目間のギャップをさらに狭める (例: 10px -> 8px) */
+}
+
+/* ★修正★ フィルター項目の幅計算 (上記 gap に合わせる) */
+/* 2行目と3行目のキーワード以外の項目を選択 */
+.filter-container > .filter-row:nth-child(n+2) > .filter-item:not(.keyword-item) {
+    flex-basis: calc(50% - 4px); /* ★変更: gap(8px)の半分を引く */
+}
