@@ -1,426 +1,136 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スポットマップ</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
-    <link rel="stylesheet" href="spot-style.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
+/**
+ * map_view_gs.js
+ * 地図表示用のスポットデータを取得する Google Apps Script
+ */
 
-    <style>
-        /* --- 基本設定 --- */
-        body {
-            margin: 0; padding: 0; font-family: sans-serif;
-            background-color: #1E2C2A; /* スポット表示順設定と同じ背景 */
-            color: #f0f0f0;
-        }
-        #map { height: 100vh; width: 100%; }
-        #loadingIndicator { 
-            position: absolute;
-            top: 10px; left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-            background-color: rgba(0,0,0,0.7);
-            color: white;
-            border-radius: 5px;
-            z-index: 1001;
-            font-weight: bold;
-        }
+// ★★★ ご自身のスプレッドシートIDに変更してください ★★★
+const SPREADSHEET_ID = "1XWirleOXBpzKw-cvyl_FVbfoqhCiXmYCefoAFJzZMd8";
+// ★★★ ご自身のシート名に変更してください ★★★
+const SHEET_NAME = 'シート1';
 
-        /* --- ダークテーマの情報表示モーダル --- */
-        .modal-bg { /* IDセレクタ #infoModal でも可 */
-            display: none; /* 初期非表示 */
-            position: fixed; z-index: 1000;
-            left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            align-items: center; justify-content: center; padding: 20px 0;
-        }
-        .modal-view { /* map-modal-view から変更した場合、クラス名も合わせる */
-            background-color: #2A3A38; /* ★変更: ダーク背景 (sort_spots_style.css のリスト背景参考) */
-            color: #f0f0f0; /* ★変更: 基本文字色を明るく */
-            padding: 25px 30px;
-            border-radius: 15px;
-            width: 90%; max-width: 500px; max-height: 85vh;
-            overflow-y: auto; position: relative;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1); /* 境界線 */
-        }
-        .modal-close-btn { /* クラス名注意 */
-            position: absolute; top: 10px; right: 15px;
-            font-size: 28px; font-weight: bold;
-            color: #aaa; /* ダーク背景に合わせて調整 */
-            background: none; border: none; cursor: pointer; line-height: 1;
-        }
-        .modal-close-btn:hover { color: #fff; } /* ホバー色変更 */
+/**
+ * スプレッドシートの列インデックス定義
+ * Spot List View_gs.js と同じ定義を基本とする
+ * ★★★ 最新のシート構成に合わせてください ★★★
+ */
+const COL = {
+  ID: 1,             // A列: ユニークID
+  NAME: 2,           // B列: スポット名
+  LAT: 3,            // C列: 緯度
+  LNG: 4,            // D列: 経度
+  ADDRESS: 5,        // E列: 住所
+  PREFECTURE: 6,     // F列: 都道府県
+  TEAM: 7,           // G列: ギルド種別
+  ENEMY_GUILD: 8,    // H列: 敵ギルド名
+  LEVEL: 9,          // I列: 拠点レベル
+  OWNER: 10,         // J列: 登録者名
+  IDENTIFIED: 11,    // K列: 特定状況
+  IMAGE_URL: 12,     // L列: Google Drive 画像URL
+  CREATED_AT: 13,    // M列: 登録日時 / 更新日時
+  IMAGE_BASE64: 14,  // N列: 画像Base64データ (容量注意)
+  DISPLAY_ORDER: 15  // O列: 表示順 (地図データとしては必須ではないが、念のため)
+};
 
-        /* モーダル内の要素 */
-        .modal-view h2 { /* IDセレクタ #modal-name-display でも可 */
-            margin-top: 0; margin-bottom: 15px; /* 下マージン少し調整 */
-            font-size: 1.3em; /* ★変更: 少し小さく (例: 1.6em -> 1.3em) */
-            color: #ffffff; /* ★変更: 見出しを白に */
-            word-break: break-all;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* 下線追加 */
-            padding-bottom: 10px;
-            font-weight: 600; /* 太さは維持 */
-        }
-        
-        /* モーダル詳細部分の <p> タグのスタイル */
-        .modal-details p {
-            margin: 8px 0;        /* 段落間のスペースを少し確保 */
-            line-height: 1.6;     /* 行の高さを読みやすく */
-            color: #f0f0f0;
-            font-size: 16px;      /* ★値部分の基準となるフォントサイズ (調整可) */
-        }
+/**
+ * Web アプリへの GET リクエストを処理
+ * action=getMapSpots でスポットデータを返す
+ */
+function doGet(e) {
+  let response = {};
+  try {
+    const action = e.parameter.action;
+    Logger.log(`🚀 doGet (Map View) received action: ${action}`);
 
-        /* ラベル部分 (<strong>) のスタイル */
-        .modal-details p strong {
-            color: #ffffff;
-            margin-right: 8px;
-            font-weight: 500;     /* ★変更: 太さを少し抑える (600 -> 500) */
-            font-size: 0.9em;     /* ★変更: 値(1em=16px)より少し小さく(14.4px相当) */
-            /* または固定値で指定: font-size: 14px; */
-            display: inline-block; /* 右マージンを確実に効かせるため */
-            width: 120px;         /* ★追加: ラベルの幅を固定して揃える (調整可) */
-            vertical-align: top;  /* 上揃えにする */
-        }
+    if (action === 'getMapSpots') {
+      const spotsData = getMapSpotData();
+      response = { status: 'success', data: spotsData };
+      Logger.log(`✅ Returning ${spotsData.length} spots for map.`);
+    } else {
+      throw new Error('Invalid action specified.');
+    }
 
-        /* 値部分 (<span>) のスタイル */
-        .modal-details p span {
-            word-break: break-all; /* 長い値は折り返す */
-            /* font-size: 1em; */ /* ← pタグから継承されるので通常は不要 */
-            display: inline-block; /* レイアウト調整用 */
-            vertical-align: top;   /* 上揃えにする */
-        }
+    return ContentService.createTextOutput(JSON.stringify(response))
+                       .setMimeType(ContentService.MimeType.JSON);
 
-        /* 画像表示 */
-        .modal-image { /* IDセレクタ #modal-image でも可 */
-            display: none;
-            width: 100%;
-            height: auto;
-            aspect-ratio: 1 / 1;
-            object-fit: contain;
-            max-height: 40vh;
-            margin: 15px auto 20px;
-            border-radius: 8px;
-            background-color: rgba(0,0,0,0.2); /* 背景色調整 */
-        }
+  } catch (error) {
+    Logger.log(`❌ Error in doGet (Map View): ${error.message}\nStack: ${error.stack}`);
+    response = { status: 'error', message: error.message };
+    return ContentService.createTextOutput(JSON.stringify(response))
+                       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
-        /* バッジ (ダーク背景用) */
-        .modal-badge { /* ← 新しい共通クラス名 */
-            display: inline-block; padding: 4px 10px; border-radius: 6px;
-            font-size: 0.9em; font-weight: bold; color: white;
-            margin-left: 8px; line-height: 1.3; vertical-align: middle;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        /* チームバッジ色 */
-        .modal-badge.team-green { background-color: #27ae60; }
-        .modal-badge.team-red { background-color: #c0392b; }
-        .modal-badge.team-gray { background-color: #7f8c8d; }
-        /* 特定状況バッジ色 */
-        .modal-badge.identified-blue { background-color: #2980b9; }
-        .modal-badge.identified-gray { background-color: #7f8c8d; }
-        /* レベルバッジ色 (文字色のみ変更、背景は共通化) */
-        .modal-badge.level-badge { background-color: #34495e; }
-        .modal-badge.level-s { color: #e74c3c; }
-        .modal-badge.level-a { color: #bb86fc; }
-        .modal-badge.level-b { color: #3498db; }
-        .modal-badge.level-c { color: #1abc9c; }
-        .modal-badge.level-d { color: #bdc3c7; }
+/**
+ * スプレッドシートから地図表示に必要なデータを取得する
+ * @returns {Array<Object>} スポット情報の配列
+ */
+function getMapSpotData() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  if (!ss) throw new Error(`Spreadsheet not found with ID: ${SPREADSHEET_ID}`);
+  const sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) throw new Error(`Sheet not found with name: ${SHEET_NAME}`);
 
-        /* タブナビゲーション用のスタイル */
-        .bottom-nav {
-            position: fixed; /* 画面下部に固定 */
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 50px; /* タブの高さを指定 */
-            background-color: #2A3A38; /* 背景色 (他の要素と合わせる) */
-            border-top: 1px solid rgba(255, 255, 255, 0.1); /* 上境界線 */
-            display: flex; /* タブを横並びに */
-            justify-content: space-around; /* タブ間のスペースを均等に */
-            align-items: center; /* 上下中央揃え */
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.2); /* 上向きの影 */
-            z-index: 1000; /* 他の要素より手前に */
-        }
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    Logger.log('No data found in sheet.');
+    return []; // データがない場合は空配列を返す
+  }
 
-        .nav-item {
-            display: flex;
-            flex-direction: column; /* テキスト (やアイコン) を縦に積む場合 */
-            align-items: center; /* 中央揃え */
-            justify-content: center; /* 中央揃え */
-            flex-grow: 1; /* 各タブが均等に幅を取る */
-            height: 100%;
-            color: #aaa; /* 通常時のテキスト色 */
-            text-decoration: none; /* リンクの下線を消す */
-            text-align: center;
-            padding: 4px 0; /* 上下のパディング */
-            transition: color 0.2s; /* 色変化を滑らかに */
-        }
+  // 必要な最大の列番号を計算 (Base64 を含める場合 COL.IMAGE_BASE64)
+  // Base64が不要なら COL.CREATED_AT など、必要な最後の列にする
+  const lastCol = COL.IMAGE_BASE64; // ★★★ Base64を含めるか判断 ★★★
 
-        .nav-item:hover {
-            color: #fff; /* ホバー時の色 */
-        }
+  const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  const values = range.getValues();
+  Logger.log(`📊 Read ${values.length} rows from sheet.`);
 
-        .nav-text {
-            font-size: 12px; /* テキストサイズ */
-            margin-top: 2px; /* アイコンとテキストの間隔 (アイコンがない場合は調整) */
-        }
+  const spots = values.map((row, index) => {
+    // 緯度と経度を数値に変換
+    const lat = parseFloat(row[COL.LAT - 1]);
+    const lng = parseFloat(row[COL.LNG - 1]);
 
-        /* アクティブなタブのスタイル */
-        .nav-item.active {
-            color: #2ecc71; /* アクティブ時の色 (例: 緑) */
-            font-weight: bold;
-        }
+    // 緯度経度が有効な数値でない場合はスキップ
+    if (isNaN(lat) || isNaN(lng)) {
+      Logger.log(`⚠️ Skipping row ${index + 2} due to invalid Lat/Lng: ${row[COL.LAT - 1]}, ${row[COL.LNG - 1]}`);
+      return null;
+    }
 
-        /* マップがタブに隠れないように調整 */
-        #map { 
-            height: calc(100vh - 50px); /* タブの高さ分を引く */
-            width: 100%; 
-        }
-    </style>
-</head>
-<body>
+    // Base64データを含めるかどうかの判断
+    // 容量が大きいので、もし地図上で画像表示が必須でなければ、URLだけにするか、
+    // もしくはBase64を返さないようにする方がパフォーマンスが良い場合があります。
+    const includeBase64 = true; // ★★★ Base64を含める場合は true ★★★
 
-    <div id="map"></div>
+    return {
+      id: row[COL.ID - 1] || '',
+      name: row[COL.NAME - 1] || '(名前なし)',
+      lat: lat,
+      lng: lng,
+      address: row[COL.ADDRESS - 1] || '',
+      prefecture: row[COL.PREFECTURE - 1] || '',
+      team: row[COL.TEAM - 1] || 'neutral',
+      enemyGuildName: row[COL.ENEMY_GUILD - 1] || '',
+      level: row[COL.LEVEL - 1] || '',
+      owner: row[COL.OWNER - 1] || '',
+      identified: row[COL.IDENTIFIED - 1] || '未特定',
+      imageUrl: row[COL.IMAGE_URL - 1] || '',
+      createdAt: row[COL.CREATED_AT - 1] || '',
+      // Base64データ (含める場合)
+      imageBase64: includeBase64 ? (row[COL.IMAGE_BASE64 - 1] || '') : undefined
+      // displayOrder: parseInt(row[COL.DISPLAY_ORDER - 1]) || 9999 // 必要であれば
+    };
+  }).filter(spot => spot !== null); // 緯度経度が無効だった null を除去
 
-    <!-- タブナビゲーション -->
-    <nav class="bottom-nav">
-        <a href="index.html" class="nav-item" id="nav-list">
-            <span class="nav-text">リスト</span>
-        </a>
-        <a href="map_view.html" class="nav-item active" id="nav-map">
-            <span class="nav-text">マップ</span>
-        </a>
-        <a href="sort_spots.html" class="nav-item" id="nav-sort">
-            <span class="nav-text">並び替え</span>
-        </a>
-    </nav>
+  return spots;
+}
 
-    <div id="infoModal" class="modal-bg">
-        <div class="modal-view">
-            <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
-            <h2 id="modal-name-display">(スポット名)</h2>
-            <img id="modal-image" class="modal-image" alt="スポット画像" style="display: none;">
-            <div class="modal-details">
-                <p><strong>ID:</strong> <span id="modal-id-display"></span></p>
-                <p><strong>緯度:</strong> <span id="modal-lat-display"></span></p>
-                <p><strong>経度:</strong> <span id="modal-lng-display"></span></p>
-                <p><strong>住所:</strong> <span id="modal-address-display"></span></p>
-                <p><strong>都道府県:</strong> <span id="modal-prefecture-display"></span></p>
-                <p><strong>チーム:</strong> <span id="modal-team-display"></span></p>
-                <p><strong>敵ギルド名:</strong> <span id="modal-enemyGuildName-display"></span></p>
-                <p><strong>レベル:</strong> <span id="modal-level-display"></span></p>
-                <p><strong>特定状況:</strong> <span id="modal-identified-display"></span></p>
-                <p><strong>登録者:</strong> <span id="modal-owner-display"></span></p>
-                <p><strong>登録/更新日時:</strong> <span id="modal-createdAt-display"></span></p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- 地図の初期化 ---
-        // ★★★ 初期表示の緯度・経度、ズームレベルを調整してください ★★★
-        const map = L.map('map').setView([35.6812, 139.7671], 5); // 例: 東京駅あたり、ズームレベル5
-
-        // --- 地図タイルの設定 ---
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        // --- カスタムアイコンの定義 ---
-        // ★★★ ピン画像のパスを実際のパスに合わせてください ★★★
-        const icons = {
-            'your guild': L.icon({
-                iconUrl: 'images/pin-green.png',   // ★変更★
-                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
-                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
-                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
-             }),
-            'enemy':      L.icon({
-                iconUrl: 'images/pin-red.png',     // ★変更★
-                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
-                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
-                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
-            }),
-            'neutral':    L.icon({
-                iconUrl: 'images/pin-neutral.png', // ★変更★
-                iconSize: [50, 50],      // 例: ダウンロードしたサイズが 50x50 px の場合
-                iconAnchor: [25, 50],      // 例: ピンの先端 (幅の半分, 高さ)
-                popupAnchor: [0, -50]       // 例: ピンの先端から少し上
-            }),
-            // デフォルトアイコン (teamが上記以外の場合や指定がない場合)
-            'default':    L.icon({
-                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-                iconSize: [25, 41],
-                iconAnchor: [12, 41],
-                popupAnchor: [1, -34]
-            })
-        };
-
-        // --- GASからデータを取得してマーカーをプロット ---
-        // ★★★ ご自身の GAS Webアプリ URL に差し替えてください ★★★
-        const gasUrl = 'https://script.google.com/macros/s/AKfycbx7slBtDJzVH3PYnSHW5MIgjEvm2XJAWBVN9RO05ALNgxMnyBDGS608OuEHBGBhi_aPJw/exec';
-
-        // ローディング表示（任意）
-        const loadingIndicator = document.createElement('div');
-        loadingIndicator.id = 'loadingIndicator'; // ★追加: IDを付与
-        loadingIndicator.innerText = 'スポット情報を読み込み中...';
-        document.body.appendChild(loadingIndicator);
-
-        fetch(gasUrl + '?action=getMapSpots')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(result => {
-                document.getElementById('loadingIndicator')?.remove(); // ★変更: IDで確実に要素を取得して削除
-                if (result.status === 'error') {
-                    throw new Error(`GAS Error: ${result.message}`);
-                }
-
-                const spots = result.data;
-                console.log(`Loaded ${spots.length} spots.`);
-
-                spots.forEach(spot => {
-                    // 緯度経度が有効か再確認 (GAS側でもチェックしているが念のため)
-                    if (typeof spot.lat !== 'number' || typeof spot.lng !== 'number' || isNaN(spot.lat) || isNaN(spot.lng)) {
-                        console.warn('Skipping spot with invalid lat/lng:', spot);
-                        return;
-                    }
-
-                    // team に基づいてアイコンを選択
-                    const teamKey = spot.team || 'neutral'; // team が空なら neutral 扱い
-                    const selectedIcon = icons[teamKey] || icons['default']; // 定義にない team なら default
-
-                    // マーカーを作成
-                    const marker = L.marker([spot.lat, spot.lng], { icon: selectedIcon });
-
-                    // マーカーにスポットデータを保持させる
-                    marker.spotData = spot;
-
-                    // マーカークリック時のイベントリスナーを設定
-                    marker.on('click', function() {
-                        const data = this.spotData; // クリックされたマーカーのデータを取得
-
-                        // 画像 (変更なし)
-                        const imgElement = document.getElementById('modal-image');
-                        if (imgElement) {
-                            if (data.imageBase64 && data.imageBase64.length > 100) {
-                                imgElement.src = `data:image/jpeg;base64,${data.imageBase64}`;
-                                imgElement.style.display = 'block';
-                            } else if (data.imageUrl) {
-                                imgElement.src = data.imageUrl;
-                                imgElement.style.display = 'block';
-                                imgElement.onerror = () => { imgElement.style.display = 'none'; };
-                            } else {
-                                imgElement.src = '';
-                                imgElement.style.display = 'none';
-                            }
-                        }
-
-                        // 各情報を span に設定
-                        document.getElementById('modal-name-display').textContent = data.name || '(名前なし)';
-                        document.getElementById('modal-id-display').textContent = data.id || '';
-                        document.getElementById('modal-lat-display').textContent = data.lat || '';
-                        document.getElementById('modal-lng-display').textContent = data.lng || '';
-                        document.getElementById('modal-address-display').textContent = data.address || '';
-                        document.getElementById('modal-prefecture-display').textContent = data.prefecture || '';
-                        document.getElementById('modal-enemyGuildName-display').textContent = data.enemyGuildName || '';
-                        document.getElementById('modal-owner-display').textContent = data.owner || '';
-                        document.getElementById('modal-createdAt-display').textContent = data.createdAt ? new Date(data.createdAt).toLocaleString('ja-JP') : '';
-
-                        // チーム表示 (バッジ適用) - span とクラス名変更
-                        const teamSpan = document.getElementById('modal-team-display');
-                        teamSpan.textContent = ''; // クリア
-                        const teamBadge = document.createElement('span');
-                        teamBadge.classList.add('modal-badge'); // 新しい共通クラス
-                        let teamText = '不明';
-                        if (data.team === 'your guild') { teamBadge.classList.add('team-green'); teamText = '自軍'; }
-                        else if (data.team === 'enemy') { teamBadge.classList.add('team-red'); teamText = '敵軍'; }
-                        else { teamBadge.classList.add('team-gray'); teamText = '未取得'; }
-                        teamBadge.textContent = teamText;
-                        teamSpan.appendChild(teamBadge);
-
-                        // レベル表示 (バッジ適用) - span とクラス名変更
-                        const levelSpan = document.getElementById('modal-level-display');
-                        levelSpan.textContent = ''; // クリア
-                        if(data.level){
-                            const levelBadge = document.createElement('span');
-                            levelBadge.classList.add('modal-badge', 'level-badge'); // 新しい共通クラス + レベル用
-                            levelBadge.textContent = data.level;
-                            if (data.level === 'S') levelBadge.classList.add('level-s');
-                            else if (data.level === 'A') levelBadge.classList.add('level-a');
-                            else if (data.level === 'B') levelBadge.classList.add('level-b');
-                            else if (data.level === 'C') levelBadge.classList.add('level-c');
-                            else if (data.level === 'D') levelBadge.classList.add('level-d');
-                            levelSpan.appendChild(levelBadge);
-                        } else {
-                            levelSpan.textContent = '-';
-                        }
-
-                        // 特定状況表示 (バッジ適用) - span とクラス名変更
-                        const identifiedSpan = document.getElementById('modal-identified-display');
-                        identifiedSpan.textContent = ''; // クリア
-                        const identifiedBadge = document.createElement('span');
-                        identifiedBadge.classList.add('modal-badge'); // 新しい共通クラス
-                        if (data.identified === '特定済み') {
-                            identifiedBadge.classList.add('identified-blue'); // 特定済み用クラス
-                            identifiedBadge.textContent = '特定済み';
-                        } else {
-                            identifiedBadge.classList.add('identified-gray'); // 未特定用クラス
-                            identifiedBadge.textContent = '未特定';
-                        }
-                        identifiedSpan.appendChild(identifiedBadge);
-
-                        // モーダルを表示 (ID: infoModal)
-                        document.getElementById('infoModal').style.display = 'flex';
-                    });
-
-                    // マーカーを地図に追加
-                    marker.addTo(map);
-                });
-
-                // 必要であれば、全マーカーが表示されるように地図の範囲を調整
-                // const markerBounds = L.featureGroup(markersArray).getBounds();
-                // if (markerBounds.isValid()) { map.fitBounds(markerBounds); }
-
-            })
-            .catch(error => {
-                document.getElementById('loadingIndicator')?.remove(); // ★変更: IDで確実に要素を取得して削除
-                console.error('Error fetching or processing spot data:', error);
-                alert('スポット情報の読み込みに失敗しました。\n' + error.message);
-            });
-
-        // --- モーダルを閉じる処理 ---
-        // モーダルの外側コンテナの ID を 'infoModal' に合わせる
-        const modalBg = document.getElementById('infoModal');
-        // 閉じるボタンのクラス名を CSS に合わせる (例: modal-close-btn)
-        const modalCloseBtn = modalBg?.querySelector('.modal-close-btn');
-
-        if(modalCloseBtn){
-            modalCloseBtn.addEventListener('click', () => {
-                modalBg.style.display = 'none';
-            });
-        }
-
-        // 背景クリック (modalBg の変数は上で定義済みなのでそのまま使える)
-        modalBg?.addEventListener('click', (event) => {
-            // event.target が modalBg 自身の場合のみ閉じる (モーダル内部のクリックでは閉じない)
-            if (event.target === modalBg) {
-                modalBg.style.display = 'none';
-            }
-        });
-
-    </script>
-
-</body>
-</html>
+// --- doPost 関数 ---
+// このファイルでは基本的に doGet のみ使用しますが、
+// 将来的に地図から何かを更新する必要が出た場合のために残しておいても良いでしょう。
+// 不要であれば削除しても構いません。
+/*
+function doPost(e) {
+  // 地図からの更新処理が必要な場合はここに実装
+  return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'POST method not implemented for map view.' }))
+                     .setMimeType(ContentService.MimeType.JSON);
+}
+*/
