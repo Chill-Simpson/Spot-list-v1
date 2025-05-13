@@ -787,13 +787,15 @@
           const spotPrefecture = (spot.prefecture || "").toLowerCase(); // 変数名を spot.prefecture と区別
           const enemyGuildName = (spot.enemyGuildName || "").toLowerCase();
           const owner = (spot.owner || "").toLowerCase();
+          const code = (String(spot.code || "")).toLowerCase(); // <<< 修正点: String() で明示的に文字列に変換
           
           match = match && (
             name.includes(searchTerm) || 
             address.includes(searchTerm) ||
             spotPrefecture.includes(searchTerm) || // 修正: spot.prefecture の内容を使用
             enemyGuildName.includes(searchTerm) ||
-            owner.includes(searchTerm)
+            owner.includes(searchTerm) ||
+            code.includes(searchTerm) // <<< 追加
           );
         }
         
